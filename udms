@@ -1,0 +1,186 @@
+#!/bin/bash
+
+# UDMS - Universal Document Management System CLI Tool
+# A development tool for interacting with the RAG document management API
+
+BASE_URL="http://localhost:8080/api"
+
+show_help() {
+    cat << EOF
+UDMS - Universal Document Management System CLI Tool
+
+Usage: udms <command> [arguments]
+
+Commands:
+    upload <file> <documentName>    Upload a document with specified name
+    delete <documentName>           Delete all chunks of a document
+    reindex <file> <documentName>   Reindex a document (delete and reload)
+    ask "<question>"                Ask a question to the RAG system
+    help                            Show this help message
+
+Examples:
+    udms upload ./contract.pdf "contract"
+    udms delete "contract"
+    udms reindex ./contract.pdf "contract"
+    udms ask "What are the main terms of the agreement?"
+
+Environment Variables:
+    UDMS_BASE_URL    Override the base URL (default: http://localhost:8080/api)
+EOF
+}
+
+check_file() {
+    local file="$1"
+    if [[ ! -f "$file" ]]; then
+        echo "Error: File '$file' does not exist"
+        exit 1
+    fi
+}
+
+upload() {
+    local file="$1"
+    local document_name="$2"
+
+    if [[ -z "$file" || -z "$document_name" ]]; then
+        echo "Error: upload requires <file> and <documentName> arguments"
+        echo "Usage: udms upload <file> <documentName>"
+        exit 1
+    fi
+
+    check_file "$file"
+
+    echo "Uploading document '$document_name' from file '$file'..."
+
+    response=$(curl -s -w "\n%{http_code}" \
+        -X POST \
+        -F "file=@$file" \
+        -F "documentName=$document_name" \
+        "$BASE_URL/documents/load")
+
+    http_code=$(echo "$response" | tail -n1)
+    body=$(echo "$response" | head -n -1)
+
+    if [[ "$http_code" -eq 200 ]]; then
+        echo "✓ Success: $body"
+    else
+        echo "✗ Error ($http_code): $body"
+        exit 1
+    fi
+}
+
+delete() {
+    local document_name="$1"
+
+    if [[ -z "$document_name" ]]; then
+        echo "Error: delete requires <documentName> argument"
+        echo "Usage: udms delete <documentName>"
+        exit 1
+    fi
+
+    echo "Deleting document '$document_name'..."
+
+    response=$(curl -s -w "\n%{http_code}" \
+        -X DELETE \
+        "$BASE_URL/documents/$document_name")
+
+    http_code=$(echo "$response" | tail -n1)
+    body=$(echo "$response" | head -n -1)
+
+    if [[ "$http_code" -eq 200 ]]; then
+        echo "✓ Success: $body"
+    else
+        echo "✗ Error ($http_code): $body"
+        exit 1
+    fi
+}
+
+reindex() {
+    local file="$1"
+    local document_name="$2"
+
+    if [[ -z "$file" || -z "$document_name" ]]; then
+        echo "Error: reindex requires <file> and <documentName> arguments"
+        echo "Usage: udms reindex <file> <documentName>"
+        exit 1
+    fi
+
+    check_file "$file"
+
+    echo "Reindexing document '$document_name' from file '$file'..."
+
+    response=$(curl -s -w "\n%{http_code}" \
+        -X POST \
+        -F "file=@$file" \
+        -F "documentName=$document_name" \
+        "$BASE_URL/documents/reindex")
+
+    http_code=$(echo "$response" | tail -n1)
+    body=$(echo "$response" | head -n -1)
+
+    if [[ "$http_code" -eq 200 ]]; then
+        echo "✓ Success: $body"
+    else
+        echo "✗ Error ($http_code): $body"
+        exit 1
+    fi
+}
+
+ask() {
+    local question="$1"
+
+    if [[ -z "$question" ]]; then
+        echo "Error: ask requires a question argument"
+        echo "Usage: udms ask \"<question>\""
+        exit 1
+    fi
+
+    echo "Asking question: $question"
+    echo "---"
+
+    response=$(curl -s -w "\n%{http_code}" \
+        -X POST \
+        -H "Content-Type: application/json" \
+        -d "{\"question\":\"$question\"}" \
+        "$BASE_URL/rag/ask")
+
+    http_code=$(echo "$response" | tail -n1)
+    body=$(echo "$response" | head -n -1)
+
+    if [[ "$http_code" -eq 200 ]]; then
+        # Extract answer from JSON response
+        answer=$(echo "$body" | sed -n 's/.*"answer":"\([^"]*\)".*/\1/p' | sed 's/\\n/\n/g')
+        echo "$answer"
+    else
+        echo "✗ Error ($http_code): $body"
+        exit 1
+    fi
+}
+
+# Override base URL if environment variable is set
+if [[ -n "$UDMS_BASE_URL" ]]; then
+    BASE_URL="$UDMS_BASE_URL"
+fi
+
+# Main command dispatcher
+case "$1" in
+    "upload")
+        upload "$2" "$3"
+        ;;
+    "delete")
+        delete "$2"
+        ;;
+    "reindex")
+        reindex "$2" "$3"
+        ;;
+    "ask")
+        ask "$2"
+        ;;
+    "help"|"--help"|"-h"|"")
+        show_help
+        ;;
+    *)
+        echo "Error: Unknown command '$1'"
+        echo "Use 'udms help' for usage information"
+        exit 1
+        ;;
+esac

@@ -26,7 +26,7 @@ public class DocumentApi {
       @RequestParam("file") MultipartFile file,
       @RequestParam("documentName") String documentName) {
     try {
-      documentService.loadDocumentUnderName(file, documentName);
+      documentService.loadDocument(file, documentName);
       return ResponseEntity.ok("Document loaded successfully");
     } catch (IOException e) {
       log.error("Error loading document: {}", e.getMessage());
@@ -37,7 +37,7 @@ public class DocumentApi {
   @DeleteMapping("/{documentName}")
   public ResponseEntity<String> deleteDocument(@PathVariable String documentName) {
     try {
-      documentService.deleteByDocumentName(documentName);
+      documentService.deleteDocument(documentName);
       return ResponseEntity.ok("Document deleted successfully");
     } catch (Exception e) {
       log.error("Error deleting document: {}", e.getMessage());

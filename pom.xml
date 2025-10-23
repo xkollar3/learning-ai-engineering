@@ -96,7 +96,7 @@
     </dependency>
     <dependency>
         <groupId>dev.langchain4j</groupId>
-        <artifactId>langchain4j-community-llm-graph-transformer</artifactId>
+        <artifactId>langchain4j-document-parser-apache-tika</artifactId>
         <version>1.7.1-beta14</version>
     </dependency>
 	</dependencies>

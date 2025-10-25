@@ -50,22 +50,19 @@ public class LangchainRagService implements RagService {
   public String askQuestion(String question) {
     log.info("Processing question: {}", question);
 
-    // Step 1: Transform the original question into 5 specific questions
+    // query transform step
     log.info("Transforming question into multiple specific queries");
     String transformedQueriesResponse = queryTransformer.transformQuery(question);
     List<String> transformedQueries = parseTransformedQueries(transformedQueriesResponse);
-    log.info("Generated {} transformed queries from original question", transformedQueries.size());
-    for (int i = 0; i < transformedQueries.size(); i++) {
-      log.info("Transformed query {}: {}", i + 1, transformedQueries.get(i));
-    }
 
-    // Step 2: Retrieve documents for all transformed queries
     ContentRetriever contentRetriever = EmbeddingStoreContentRetriever.builder()
         .embeddingStore(this.embeddingStore)
         .embeddingModel(this.embeddingModel)
         .maxResults(5) // on each interaction we will retrieve the 5 most relevant segments
         .build();
 
+    // retrieve and relevance check, if more efficiency is needed do not check
+    // relevance for each transformed query separately
     log.info("Retrieving relevant segments from embedding store for all transformed queries");
     Set<String> uniqueChunks = new HashSet<>();
     for (String transformedQuery : transformedQueries) {
@@ -77,7 +74,6 @@ public class LangchainRagService implements RagService {
         boolean isRelevant = relevanceChecker.isTextRelevant(question, chunk);
 
         if (isRelevant) {
-          log.info("relevant chunk added: {}", chunk.substring(0, Math.min(100, chunk.length())));
           uniqueChunks.add(chunk);
         }
       }
@@ -86,6 +82,7 @@ public class LangchainRagService implements RagService {
     List<String> relevantChunks = new ArrayList<>(uniqueChunks);
     log.info("Retrieved and filtered to {} unique relevant chunks from all transformed queries", relevantChunks.size());
 
+    // in this simple demo fail if nothing is found
     if (relevantChunks.size() == 0) {
       throw new IllegalStateException("Must find at least a single relevant chunk");
     }
@@ -107,21 +104,9 @@ public class LangchainRagService implements RagService {
         Answer:
         """, context, question);
 
-    log.info("Generating answer using chat model");
-    // Generate the answer using the chat model
-    String answer = chatModel.chat(finalPrompt);
-    log.info("Answer generated, length: {} characters", answer.length());
-
-    return answer;
+    return chatModel.chat(finalPrompt);
   }
 
-  /**
-   * Parses the transformed queries from the AI service response.
-   * Expected format: numbered list (1-5) with one query per line.
-   *
-   * @param response the response from the QueryTransformer service
-   * @return a list of parsed query strings
-   */
   private List<String> parseTransformedQueries(String response) {
     List<String> queries = new ArrayList<>();
     String[] lines = response.split("\n");

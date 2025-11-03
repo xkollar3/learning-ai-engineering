@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 // TODO: move
 @Configuration
 @Slf4j
-public class EmbeddingConfig {
+public class LangchainConfiguration {
   @Bean
   public EmbeddingStore<TextSegment> embeddingStore(PgVectorStoreConfiguration configuration,
       EmbeddingModel openAiEmbeddingModel) {
@@ -42,6 +42,6 @@ public class EmbeddingConfig {
 
   @Bean
   public ChatModel chatModel(@Value("${openai-api-key}") String apiKey) {
-    return OpenAiChatModel.builder().apiKey(apiKey).modelName(OpenAiChatModelName.GPT_3_5_TURBO).build();
+    return OpenAiChatModel.builder().apiKey(apiKey).modelName(OpenAiChatModelName.GPT_4_O_MINI).build();
   }
 }

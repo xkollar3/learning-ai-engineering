@@ -1,6 +1,7 @@
 package edu.xkollar3.contextual_retrieval_repository.service;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -9,8 +10,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -47,6 +53,8 @@ public class DocumentService {
   private final EmbeddingModel embeddingModel;
   private final ContentRetriever contentRetriever;
   private final ChatModel chatModel;
+  private final ExecutorService executorService = Executors
+      .newVirtualThreadPerTaskExecutor();
   private final int K = 5;
 
   @Autowired
@@ -81,27 +89,50 @@ public class DocumentService {
     List<TextSegment> segments = splitter.split(document);
     String wholeDocumentText = document.text();
 
-    int chunkIndex = 0;
-    for (TextSegment segment : segments) {
-      String contextualizedChunk = contextualizeChunk(wholeDocumentText, segment.text());
-      log.debug("Contextualized chunk: {}", contextualizedChunk);
-      TextSegment contextualizedSegment = TextSegment.from(contextualizedChunk);
+    List<Future<DocumentChunkEntity>> futures = new ArrayList<>();
 
-      // INEFFICIENT batch embed should be called! for demo is ok
-      Embedding embed = embeddingModel.embed(contextualizedSegment).content();
-      String id = embeddingStore.add(embed, contextualizedSegment);
+    // Submit all tasks to executor service
+    for (int chunkIndex = 0; chunkIndex < segments.size(); chunkIndex++) {
+      final int index = chunkIndex;
+      TextSegment segment = segments.get(chunkIndex);
 
-      DocumentChunkEntity chunk = new DocumentChunkEntity();
-      chunk.setDocument(entity);
-      chunk.setContent(segment.text());
-      chunk.setContextualizedText(contextualizedChunk);
-      chunk.setChunkIndex(chunkIndex);
-      chunk.setEmbeddingId(UUID.fromString(id)); // move to ID?
-      documentChunkRepository.save(chunk);
-      chunkIndex++;
+      Future<DocumentChunkEntity> future = executorService.submit(() -> {
+        String contextualizedChunk = contextualizeChunk(wholeDocumentText, segment.text());
+        log.debug("Contextualized chunk: {}", contextualizedChunk);
+        TextSegment contextualizedSegment = TextSegment.from(contextualizedChunk);
+
+        // INEFFICIENT batch embed should be called! for demo is ok
+        Embedding embed = embeddingModel.embed(contextualizedSegment).content();
+        String id = embeddingStore.add(embed, contextualizedSegment);
+
+        DocumentChunkEntity chunk = new DocumentChunkEntity();
+        chunk.setDocument(entity);
+        chunk.setContent(segment.text());
+        chunk.setContextualizedText(contextualizedChunk);
+        chunk.setChunkIndex(index);
+        chunk.setEmbeddingId(UUID.fromString(id));
+        return chunk;
+      });
+
+      futures.add(future);
     }
 
-    log.info("All {} chunks saved to database", chunkIndex);
+    List<DocumentChunkEntity> results = new ArrayList<>();
+
+    // Wait for all tasks to complete
+    for (Future<DocumentChunkEntity> future : futures) {
+      try {
+        DocumentChunkEntity chunk = future.get();
+        results.add(chunk);
+      } catch (Exception e) {
+        log.error("Error processing chunk", e);
+        throw new RuntimeException("Failed to process chunk", e);
+      }
+    }
+
+    documentChunkRepository.saveAll(results);
+
+    log.info("All {} chunks processed and saved to database", futures.size());
   }
 
   private String contextualizeChunk(String wholeDocument, String chunkContent) {

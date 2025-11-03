@@ -57,8 +57,7 @@ public class DocumentService {
 
   @Autowired
   public DocumentService(DocumentRepository documentRepository, DocumentChunkRepository documentChunkRepository,
-      EmbeddingStore<TextSegment> embeddingStore, EmbeddingModel embeddingModel, ContentRetriever contentRetriever,
-      ChatModel chatModel) {
+      EmbeddingStore<TextSegment> embeddingStore, EmbeddingModel embeddingModel, ChatModel chatModel) {
     this.documentRepository = documentRepository;
     this.documentChunkRepository = documentChunkRepository;
     this.embeddingStore = embeddingStore;

@@ -5,6 +5,7 @@ import java.io.IOException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -34,7 +35,7 @@ public class DocumentApi {
     return ResponseEntity.status(HttpStatus.CREATED).body("Document uploaded successfully");
   }
 
-  @PostMapping("/query")
+  @GetMapping("/query")
   public ResponseEntity<String> query(@RequestParam("query") String query) {
     String answer = documentService.query(query);
     return ResponseEntity.ok(answer);

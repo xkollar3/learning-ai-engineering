@@ -141,7 +141,7 @@ query_documents() {
   print_info "Processing query: $query_text"
   print_info "API URL: $API_BASE_URL/query"
 
-  response=$(curl -s -w "\n%{http_code}" -X POST \
+  response=$(curl -s -w "\n%{http_code}" -X GET \
     -G "$API_BASE_URL/query" \
     --data-urlencode "query=$query_text")
 

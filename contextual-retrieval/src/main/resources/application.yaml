@@ -1,0 +1,61 @@
+spring:
+  application:
+    name: rag-example-java
+  profiles:
+    active: local
+
+  docker:
+    compose:
+      enabled: true
+      file: compose.yaml
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/rag_db
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  ai:
+    vectorstore:
+      pgvector:
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+        dimensions: 1536
+        remove-existing-vector-store-table: false
+        initialize-schema: true
+
+    openai:
+      embedding:
+        options:
+          model: text-embedding-3-small
+      chat:
+        options:
+          model: gpt-3.5-turbo
+          temperature: 0.7
+
+logging:
+  level:
+    root: INFO
+    edu.xkollar3: DEBUG
+
+langchain-store:
+  hostname: localhost
+  port: 5432
+  username: postgres
+  password: postgres
+  database: rag_db
+  embedding-table-name: langchain_vector
+
+
+langchain4j:
+  open-ai:
+    embedding-model:
+      model-name: text-embedding-3-small

@@ -3,7 +3,6 @@ package edu.xkollar3.rag_example_java.data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
-import jakarta.annotation.PostConstruct;
 import lombok.Data;
 
 @Data
